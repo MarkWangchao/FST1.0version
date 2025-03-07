@@ -1,0 +1,42 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# 配置文件中可能包含敏感信息
+config.yaml
+config.json
+secrets.yaml
+secrets.json
+
+# 日志和缓存
+*.log
+data/logs/
+data/cache/
+
+# IDE相关
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# 系统相关
+.DS_Store
+Thumbs.db

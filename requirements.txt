@@ -1,0 +1,16 @@
+# FST (Full Self Trading) 1.0verse 依赖项
+tqsdk>=2.0.0
+numpy>=1.20.0
+pandas>=1.3.0
+matplotlib>=3.5.0
+PyYAML>=6.0
+SQLAlchemy>=1.4.0
+fastapi>=0.68.0
+uvicorn>=0.15.0
+python-dateutil>=2.8.2
+scikit-learn>=1.0.0
+xgboost>=1.5.0
+tensorflow>=2.8.0
+PyQt5>=5.15.0
+websockets>=10.0
+pytest>=6.2.5
