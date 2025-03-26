@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+
+{% block title %}行情 - FST Trading Platform{% endblock %}
+
+{% block head %}
+<!-- 额外的图表库 -->
+<link rel="stylesheet" href="{{ url_for('static', filename='css/trading-view.min.css') }}">
+<script src="{{ url_for('static', filename='js/trading-view-lightweight.min.js') }}"></script>
+{% endblock %}
+
+{% block content %}
+<div id="market-app" v-cloak>
+    <!-- 页面标题和交易对选择 -->
+    <div class="flex justify-between items-center mb-4">
+        <h1 class="text-2xl font-bold text-gray-800 dark:text-white">行情中心</h1>
+        <div class="flex space-x-2">
+            <select v-model="selectedExchange" @change="loadSymbols" class="form-input w-40">
+                <option value="">所有交易所</option>
+                <option value="binance">Binance</option>
+                <option value="huobi">Huobi</option>
+                <option value="okex">OKEx</option>
+            </select>
+            <select v-model="selectedSymbol" @change="changeSymbol" class="form-input w-48">
+                <option value="">选择交易对</option>
+                <option v-for="symbol in symbols" :key="symbol" :value="symbol">${ symbol }</option>
+            </select>
+            <div class="flex space-x-1">
+                <button v-for="interval in intervals" 
+                        :key="interval.value" 
+                        @click="setInterval(interval.value)"
+                        :class="[
+                            'btn btn-sm', 
+                            selectedInterval === interval.value ? 'btn-primary' : 'btn-secondary'
+                        ]">
+                    ${ interval.label }
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 行情数据概览 -->
+    <div v-if="ticker" class="card mb-4 p-4">
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <div class="text-center">
+                <div class="text-gray-500 dark:text-gray-400 text-sm">最新价格</div>
+                <div :class="priceChangeClass" class="text-xl font-bold">
+                    ${ formatPrice(ticker.price) }
+                </div>
+            </div>
+            <div class="text-center">
+                <div class="text-gray-500 dark:text-gray-400 text-sm">24h涨跌</div>
+                <div :class="priceChangeClass">
+                    ${ formatPriceChange(ticker.priceChange) } (${ formatPercent(ticker.priceChangePercent) })
+                </div>
+            </div>
+            <div class="text-center">
+                <div class="text-gray-500 dark:text-gray-400 text-sm">24h最高</div>
+                <div class="text-gray-800 dark:text-gray-200">
+                    ${ formatPrice(ticker.high) }
+                </div>
+            </div>
+            <div class="text-center">
+                <div class="text-gray-500 dark:text-gray-400 text-sm">24h最低</div>
+                <div class="text-gray-800 dark:text-gray-200">
+                    ${ formatPrice(ticker.low) }
+                </div>
+            </div>
+            <div class="text-center">
+                <div class="text-gray-500 dark:text-gray-400 text-sm">24h成交量</div>
+                <div class="text-gray-800 dark:text-gray-200">
+                    ${ formatVolume(ticker.volume) }
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 主要内容区域 - 图表和市场数据 -->
+    <div class="grid grid-cols-1 lg:grid-cols-4 gap-4">
+        <!-- K线图 -->
+        <div class="lg:col-span-3">
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">K线图</h2>
+                    <div>
+                        <button @click="toggleIndicator('MA')" 
+                                :class="[
+                                    'btn btn-sm', 
+                                    indicators.MA ? 'btn-primary' : 'btn-secondary'
+                                ]">
+                            MA
+                        </button>
+                        <button @click="toggleIndicator('BOLL')" 
+                                :class="[
+                                    'btn btn-sm', 
+                                    indicators.BOLL ? 'btn-primary' : 'btn-secondary'
+                                ]">
+                            BOLL
+                        </button>
+                        <button @click="toggleIndicator('MACD')" 
+                                :class="[
+                                    'btn btn-sm', 
+                                    indicators.MACD ? 'btn-primary' : 'btn-secondary'
+                                ]">
+                            MACD
+                        </button>
+                    </div>
+                </div>
+                <div id="kline-chart" class="h-96"></div>
+            </div>
+        </div>
+        
+        <!-- 右侧面板 - 深度和成交 -->
+        <div class="lg:col-span-1 space-y-4">
+            <!-- 市场深度 -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">市场深度</h2>
+                </div>
+                <div id="depth-chart" class="h-60"></div>
+            </div>
+            
+            <!-- 最近成交 -->
+            <div class="card">
+                <div class="card-header">
+                    <h2 class="card-title">最近成交</h2>
+                </div>
+                <div class="overflow-x-auto max-h-60">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>价格</th>
+                                <th>数量</th>
+                                <th>方向</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="trade in recentTrades" :key="trade.id">
+                                <td>${ formatTime(trade.time) }</td>
+                                <td :class="trade.isBuyer ? 'text-green-500' : 'text-red-500'">${ formatPrice(trade.price) }</td>
+                                <td>${ formatVolume(trade.qty) }</td>
+                                <td :class="trade.isBuyer ? 'text-green-500' : 'text-red-500'">${ trade.isBuyer ? '买入' : '卖出' }</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 市场列表 -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h2 class="card-title">市场列表</h2>
+            <div class="flex space-x-2">
+                <button @click="setCategory('favorite')" 
+                        :class="[
+                            'btn btn-sm', 
+                            activeCategory === 'favorite' ? 'btn-primary' : 'btn-secondary'
+                        ]">
+                    自选
+                </button>
+                <button @click="setCategory('usdt')" 
+                        :class="[
+                            'btn btn-sm', 
+                            activeCategory === 'usdt' ? 'btn-primary' : 'btn-secondary'
+                        ]">
+                    USDT
+                </button>
+                <button @click="setCategory('btc')" 
+                        :class="[
+                            'btn btn-sm', 
+                            activeCategory === 'btc' ? 'btn-primary' : 'btn-secondary'
+                        ]">
+                    BTC
+                </button>
+                <button @click="setCategory('eth')" 
+                        :class="[
+                            'btn btn-sm', 
+                            activeCategory === 'eth' ? 'btn-primary' : 'btn-secondary'
+                        ]">
+                    ETH
+                </button>
+            </div>
+        </div>
+        <div class="overflow-x-auto">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>交易对</th>
+                        <th>最新价格</th>
+                        <th>24h涨跌</th>
+                        <th>24h最高</th>
+                        <th>24h最低</th>
+                        <th>24h成交量</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="item in filteredMarketList" :key="item.symbol">
+                        <td>
+                            <div class="flex items-center">
+                                <button @click="toggleFavorite(item.symbol)" class="mr-2">
+                                    <i :class="isFavorite(item.symbol) ? 'fas fa-star text-yellow-500' : 'far fa-star text-gray-400'"></i>
+                                </button>
+                                <span>${ item.symbol }</span>
+                            </div>
+                        </td>
+                        <td :class="getPriceChangeClass(item)">${ formatPrice(item.price) }</td>
+                        <td :class="getPriceChangeClass(item)">
+                            ${ formatPriceChange(item.priceChange) } (${ formatPercent(item.priceChangePercent) })
+                        </td>
+                        <td>${ formatPrice(item.high) }</td>
+                        <td>${ formatPrice(item.low) }</td>
+                        <td>${ formatVolume(item.volume) }</td>
+                        <td>
+                            <button @click="goToTrade(item.symbol)" class="btn btn-sm btn-primary">交易</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- 加载中状态 -->
+    <div v-if="loading" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+        <div class="loading">
+            <div class="loading-spinner"></div>
+            <div class="mt-2 text-white">加载中...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script src="{{ url_for('static', filename='js/views/market.js') }}"></script>
+{% endblock %}

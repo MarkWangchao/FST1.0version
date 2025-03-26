@@ -1,0 +1,290 @@
+{% extends "base.html" %}
+
+{% block title %}仪表盘 - FST Trading Platform{% endblock %}
+
+{% block content %}
+<div id="dashboard" v-cloak>
+    <!-- 账户概览 -->
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div class="card">
+            <h3 class="card-title mb-4">账户余额</h3>
+            <div class="text-3xl font-bold text-gray-900 dark:text-white">
+                ¥ {{ account.balance | formatNumber }}
+            </div>
+            <div class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                日收益: <span :class="{'text-green-500': dailyPnL > 0, 'text-red-500': dailyPnL < 0}">
+                    {{ dailyPnL | formatNumber }}
+                </span>
+            </div>
+        </div>
+        
+        <div class="card">
+            <h3 class="card-title mb-4">持仓市值</h3>
+            <div class="text-3xl font-bold text-gray-900 dark:text-white">
+                ¥ {{ totalPositionValue | formatNumber }}
+            </div>
+            <div class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                持仓数量: {{ account.positions.length }}
+            </div>
+        </div>
+        
+        <div class="card">
+            <h3 class="card-title mb-4">今日交易</h3>
+            <div class="text-3xl font-bold text-gray-900 dark:text-white">
+                {{ todayTradeCount }}
+            </div>
+            <div class="text-sm text-gray-500 dark:text-gray-400 mt-2">
+                成交金额: ¥ {{ todayTradeVolume | formatNumber }}
+            </div>
+        </div>
+    </div>
+    
+    <!-- 图表区域 -->
+    <div class="card mb-6">
+        <div class="card-header">
+            <h3 class="card-title">账户净值走势</h3>
+            <div class="flex space-x-2">
+                <button class="btn btn-secondary" 
+                        v-for="period in ['1D', '1W', '1M', '3M', 'YTD']"
+                        :key="period"
+                        :class="{'bg-blue-600': selectedPeriod === period}"
+                        @click="changePeriod(period)">
+                    {{ period }}
+                </button>
+            </div>
+        </div>
+        <div class="chart-container" ref="equityChart"></div>
+    </div>
+    
+    <!-- 持仓列表 -->
+    <div class="card mb-6">
+        <div class="card-header">
+            <h3 class="card-title">当前持仓</h3>
+            <button class="btn btn-primary" @click="refreshPositions">
+                刷新
+            </button>
+        </div>
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>代码</th>
+                        <th>名称</th>
+                        <th>数量</th>
+                        <th>成本价</th>
+                        <th>现价</th>
+                        <th>市值</th>
+                        <th>盈亏</th>
+                        <th>盈亏率</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="position in account.positions" :key="position.symbol">
+                        <td>{{ position.symbol }}</td>
+                        <td>{{ position.name }}</td>
+                        <td>{{ position.volume }}</td>
+                        <td>{{ position.cost | formatPrice }}</td>
+                        <td>{{ marketData.prices[position.symbol] | formatPrice }}</td>
+                        <td>{{ position.marketValue | formatNumber }}</td>
+                        <td :class="{'text-green-500': position.pnl > 0, 'text-red-500': position.pnl < 0}">
+                            {{ position.pnl | formatNumber }}
+                        </td>
+                        <td :class="{'text-green-500': position.pnlRatio > 0, 'text-red-500': position.pnlRatio < 0}">
+                            {{ position.pnlRatio | formatPercent }}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <!-- 最近交易 -->
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">最近交易</h3>
+        </div>
+        <div class="table-container">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>时间</th>
+                        <th>代码</th>
+                        <th>名称</th>
+                        <th>方向</th>
+                        <th>价格</th>
+                        <th>数量</th>
+                        <th>金额</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="trade in recentTrades" :key="trade.id">
+                        <td>{{ trade.time | formatTime }}</td>
+                        <td>{{ trade.symbol }}</td>
+                        <td>{{ trade.name }}</td>
+                        <td :class="{'text-green-500': trade.side === 'BUY', 'text-red-500': trade.side === 'SELL'}">
+                            {{ trade.side === 'BUY' ? '买入' : '卖出' }}
+                        </td>
+                        <td>{{ trade.price | formatPrice }}</td>
+                        <td>{{ trade.volume }}</td>
+                        <td>{{ trade.amount | formatNumber }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 注册过滤器
+app.config.globalProperties.$filters = {
+    formatNumber(value) {
+        return new Intl.NumberFormat('zh-CN').format(value);
+    },
+    
+    formatPrice(value) {
+        return new Intl.NumberFormat('zh-CN', {
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(value);
+    },
+    
+    formatPercent(value) {
+        return new Intl.NumberFormat('zh-CN', {
+            style: 'percent',
+            minimumFractionDigits: 2,
+            maximumFractionDigits: 2
+        }).format(value);
+    },
+    
+    formatTime(value) {
+        return new Date(value).toLocaleString('zh-CN');
+    }
+};
+
+// 仪表盘组件
+const dashboard = {
+    data() {
+        return {
+            selectedPeriod: '1D',
+            chart: null
+        }
+    },
+    
+    computed: {
+        // 计算今日交易统计
+        todayTradeCount() {
+            const today = new Date().toDateString();
+            return this.account.trades.filter(trade => 
+                new Date(trade.time).toDateString() === today
+            ).length;
+        },
+        
+        todayTradeVolume() {
+            const today = new Date().toDateString();
+            return this.account.trades
+                .filter(trade => new Date(trade.time).toDateString() === today)
+                .reduce((sum, trade) => sum + trade.amount, 0);
+        },
+        
+        // 计算持仓总市值
+        totalPositionValue() {
+            return this.account.positions.reduce((sum, position) => {
+                const price = this.marketData.prices[position.symbol] || position.cost;
+                return sum + (position.volume * price);
+            }, 0);
+        },
+        
+        // 计算日收益
+        dailyPnL() {
+            return this.account.positions.reduce((sum, position) => {
+                const price = this.marketData.prices[position.symbol] || position.cost;
+                return sum + (price - position.cost) * position.volume;
+            }, 0);
+        },
+        
+        // 最近交易记录
+        recentTrades() {
+            return this.account.trades.slice(0, 10);
+        }
+    },
+    
+    methods: {
+        // 初始化图表
+        initChart() {
+            const ctx = this.$refs.equityChart.getContext('2d');
+            this.chart = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        label: '账户净值',
+                        data: [],
+                        borderColor: '#3B82F6',
+                        tension: 0.1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: {
+                            display: false
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: false
+                        }
+                    }
+                }
+            });
+        },
+        
+        // 更新图表数据
+        async updateChart() {
+            try {
+                const response = await fetch(`/api/account/equity?period=${this.selectedPeriod}`);
+                const data = await response.json();
+                
+                this.chart.data.labels = data.times;
+                this.chart.data.datasets[0].data = data.values;
+                this.chart.update();
+            } catch (error) {
+                this.handleError({
+                    message: '加载净值数据失败'
+                });
+            }
+        },
+        
+        // 切换时间周期
+        changePeriod(period) {
+            this.selectedPeriod = period;
+            this.updateChart();
+        },
+        
+        // 刷新持仓数据
+        async refreshPositions() {
+            try {
+                const response = await fetch('/api/account/positions');
+                const data = await response.json();
+                this.account.positions = data;
+            } catch (error) {
+                this.handleError({
+                    message: '刷新持仓数据失败'
+                });
+            }
+        }
+    },
+    
+    mounted() {
+        this.initChart();
+        this.updateChart();
+    }
+};
+
+// 注册仪表盘组件
+app.component('dashboard', dashboard);
+</script>
+{% endblock %}

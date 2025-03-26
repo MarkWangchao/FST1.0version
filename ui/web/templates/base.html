@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}FST Trading Platform{% endblock %}</title>
+    
+    <!-- Favicon -->
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='images/favicon.png') }}">
+    
+    <!-- CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/normalize.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/tailwind.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    
+    <!-- JavaScript -->
+    <script src="{{ url_for('static', filename='js/vue.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/socket.io.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chart.min.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/app.js') }}"></script>
+    
+    {% block head %}{% endblock %}
+</head>
+<body class="bg-gray-100 dark:bg-gray-900">
+    <!-- 导航栏 -->
+    <nav class="bg-white dark:bg-gray-800 shadow-lg">
+        <div class="max-w-7xl mx-auto px-4">
+            <div class="flex justify-between h-16">
+                <!-- Logo和标题 -->
+                <div class="flex">
+                    <div class="flex-shrink-0 flex items-center">
+                        <img class="h-8 w-8" src="{{ url_for('static', filename='images/logo.png') }}" alt="FST Logo">
+                        <span class="ml-2 text-xl font-bold text-gray-800 dark:text-white">FST Trading</span>
+                    </div>
+                </div>
+                
+                <!-- 导航链接 -->
+                <div class="hidden md:flex items-center space-x-4">
+                    <a href="{{ url_for('dashboard') }}" class="nav-link">仪表盘</a>
+                    <a href="{{ url_for('trading') }}" class="nav-link">交易</a>
+                    <a href="{{ url_for('market') }}" class="nav-link">行情</a>
+                    <a href="{{ url_for('reports') }}" class="nav-link">报告</a>
+                    <a href="{{ url_for('settings') }}" class="nav-link">设置</a>
+                </div>
+                
+                <!-- 用户菜单 -->
+                <div class="flex items-center">
+                    <div class="ml-3 relative">
+                        <button class="flex text-sm rounded-full focus:outline-none" id="user-menu">
+                            <img class="h-8 w-8 rounded-full" src="{{ url_for('static', filename='images/avatar.png') }}" alt="User avatar">
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </nav>
+    
+    <!-- 主要内容 -->
+    <main class="container mx-auto px-4 py-6">
+        {% block content %}{% endblock %}
+    </main>
+    
+    <!-- 页脚 -->
+    <footer class="bg-white dark:bg-gray-800 shadow-lg mt-8">
+        <div class="max-w-7xl mx-auto py-4 px-4">
+            <div class="flex justify-between items-center">
+                <div class="text-gray-500 dark:text-gray-400">
+                    &copy; 2025 FST Trading Platform. All rights reserved.
+                </div>
+                <div class="flex space-x-4">
+                    <a href="#" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">关于</a>
+                    <a href="#" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">帮助</a>
+                    <a href="#" class="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300">联系我们</a>
+                </div>
+            </div>
+        </div>
+    </footer>
+    
+    <!-- 通知区域 -->
+    <div id="notifications" class="fixed bottom-4 right-4 z-50">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="notification {{ category }}">
+                        {{ message }}
+                    </div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+    </div>
+    
+    <!-- JavaScript -->
+    {% block scripts %}{% endblock %}
+    
+    <!-- 主题切换 -->
+    <script>
+        // 检查系统主题
+        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
+            document.documentElement.classList.add('dark');
+        }
+        
+        // 主题切换功能
+        function toggleTheme() {
+            document.documentElement.classList.toggle('dark');
+        }
+    </script>
+</body>
+</html>

@@ -1,0 +1,108 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: trading-platform-config
+  labels:
+    app: trading-platform
+data:
+  ENVIRONMENT: "production"
+  LOG_LEVEL: "INFO"
+  METRICS_ENABLED: "true"
+  ALLOWED_HOSTS: "api.tradingplatform.example.com"
+  CORS_ORIGINS: "https://tradingplatform.example.com,https://www.tradingplatform.example.com"
+  
+  # Application configuration in YAML format for direct mounting
+  config.yaml: |
+    app:
+      name: "Trading Platform"
+      version: "1.0.0"
+      
+    server:
+      host: "0.0.0.0"
+      port: 8000
+      workers: 4
+      timeout: 60
+      
+    logging:
+      level: "${LOG_LEVEL}"
+      format: "json"
+      file:
+        enabled: true
+        path: "/app/logs/application.log"
+        max_size_mb: 100
+        backup_count: 5
+        
+    security:
+      jwt:
+        access_token_expire_minutes: 30
+        refresh_token_expire_days: 7
+        algorithm: "HS256"
+      password:
+        min_length: 8
+        require_uppercase: true
+        require_lowercase: true
+        require_digits: true
+        require_special_chars: true
+        
+    database:
+      max_connections: 20
+      pool_recycle: 3600
+      pool_timeout: 30
+      pool_size: 10
+      
+    redis:
+      max_connections: 10
+      timeout: 5
+      retry_attempts: 3
+      retry_delay: 1
+      
+    throttling:
+      enabled: true
+      default_rates:
+        - "60/minute"
+        - "1000/hour"
+      api_key_rates:
+        - "300/minute"
+        - "5000/hour"
+      burst_multiplier: 2
+      
+    exchanges:
+      request_timeout: 10
+      retry_attempts: 3
+      retry_delay: 1
+      
+    backtest:
+      max_backtest_period_days: 365
+      default_initial_capital: 10000
+      
+    strategies:
+      max_active_strategies: 10
+      execution_interval: 60
+      health_check_interval: 300
+      
+    monitoring:
+      metrics:
+        enabled: "${METRICS_ENABLED}"
+        endpoint: "/metrics"
+      health:
+        enabled: true
+        endpoint: "/health"
+      tracing:
+        enabled: true
+        sampling_rate: 0.1
+        
+    notifications:
+      email:
+        enabled: true
+        from_email: "notifications@tradingplatform.example.com"
+        smtp:
+          host: "smtp.example.com"
+          port: 587
+          use_tls: true
+      push:
+        enabled: true
+        firebase_credentials_file: "/app/config/firebase.json"
+        
+    ui:
+      api_url: "https://api.tradingplatform.example.com"
+      websocket_url: "wss://api.tradingplatform.example.com/ws"

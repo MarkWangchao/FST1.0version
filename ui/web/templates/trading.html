@@ -1,0 +1,342 @@
+{% extends "base.html" %}
+
+{% block title %}交易 - FST Trading Platform{% endblock %}
+
+{% block content %}
+<div id="trading" v-cloak>
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- 左侧面板：交易下单 -->
+        <div class="lg:col-span-2">
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">交易下单</h3>
+                </div>
+                
+                <!-- 交易表单 -->
+                <form @submit.prevent="submitOrder" class="space-y-4">
+                    <!-- 交易对选择 -->
+                    <div class="form-group">
+                        <label class="form-label">交易对</label>
+                        <select v-model="orderForm.symbol" class="form-input">
+                            <option v-for="symbol in marketData.symbols" :key="symbol" :value="symbol">
+                                {{ symbol }}
+                            </option>
+                        </select>
+                    </div>
+                    
+                    <!-- 交易方向 -->
+                    <div class="form-group">
+                        <label class="form-label">交易方向</label>
+                        <div class="flex space-x-4">
+                            <button type="button" class="btn flex-1"
+                                    :class="orderForm.side === 'BUY' ? 'btn-success' : 'btn-secondary'"
+                                    @click="orderForm.side = 'BUY'">
+                                买入
+                            </button>
+                            <button type="button" class="btn flex-1"
+                                    :class="orderForm.side === 'SELL' ? 'btn-danger' : 'btn-secondary'"
+                                    @click="orderForm.side = 'SELL'">
+                                卖出
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 价格类型 -->
+                    <div class="form-group">
+                        <label class="form-label">价格类型</label>
+                        <select v-model="orderForm.type" class="form-input">
+                            <option value="LIMIT">限价单</option>
+                            <option value="MARKET">市价单</option>
+                        </select>
+                    </div>
+                    
+                    <!-- 价格输入 -->
+                    <div class="form-group" v-if="orderForm.type === 'LIMIT'">
+                        <label class="form-label">价格</label>
+                        <div class="flex space-x-2">
+                            <input type="number" v-model="orderForm.price" class="form-input" step="0.01" min="0">
+                            <button type="button" class="btn btn-secondary" @click="useMarketPrice">
+                                市价
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <!-- 数量输入 -->
+                    <div class="form-group">
+                        <label class="form-label">数量</label>
+                        <div class="flex space-x-2">
+                            <input type="number" v-model="orderForm.volume" class="form-input" min="0">
+                            <div class="flex space-x-1">
+                                <button type="button" class="btn btn-secondary" 
+                                        v-for="percent in [25, 50, 75, 100]" 
+                                        @click="setVolumePercent(percent)">
+                                    {{ percent }}%
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- 交易金额 -->
+                    <div class="form-group">
+                        <label class="form-label">交易金额</label>
+                        <div class="text-lg font-bold text-gray-900 dark:text-white">
+                            ¥ {{ orderAmount | formatNumber }}
+                        </div>
+                    </div>
+                    
+                    <!-- 提交按钮 -->
+                    <div class="flex justify-end">
+                        <button type="submit" class="btn"
+                                :class="orderForm.side === 'BUY' ? 'btn-success' : 'btn-danger'"
+                                :disabled="!isValidOrder">
+                            {{ orderForm.side === 'BUY' ? '买入' : '卖出' }}
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- 右侧面板：市场行情 -->
+        <div>
+            <div class="card mb-6">
+                <div class="card-header">
+                    <h3 class="card-title">市场行情</h3>
+                </div>
+                <div v-if="selectedSymbol">
+                    <div class="p-4 border-b dark:border-gray-700">
+                        <div class="text-2xl font-bold"
+                             :class="{'text-green-500': priceChange > 0, 'text-red-500': priceChange < 0}">
+                            {{ currentPrice | formatPrice }}
+                        </div>
+                        <div class="text-sm text-gray-500 dark:text-gray-400">
+                            24h变化：
+                            <span :class="{'text-green-500': priceChange > 0, 'text-red-500': priceChange < 0}">
+                                {{ priceChange | formatPrice }} ({{ priceChangePercent | formatPercent }})
+                            </span>
+                        </div>
+                    </div>
+                    <div class="p-4">
+                        <div class="grid grid-cols-2 gap-4">
+                            <div>
+                                <div class="text-sm text-gray-500 dark:text-gray-400">24h最高</div>
+                                <div class="font-medium">{{ marketData.high24h | formatPrice }}</div>
+                            </div>
+                            <div>
+                                <div class="text-sm text-gray-500 dark:text-gray-400">24h最低</div>
+                                <div class="font-medium">{{ marketData.low24h | formatPrice }}</div>
+                            </div>
+                            <div>
+                                <div class="text-sm text-gray-500 dark:text-gray-400">24h成交量</div>
+                                <div class="font-medium">{{ marketData.volume24h | formatNumber }}</div>
+                            </div>
+                            <div>
+                                <div class="text-sm text-gray-500 dark:text-gray-400">24h成交额</div>
+                                <div class="font-medium">{{ marketData.amount24h | formatNumber }}</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- 活动订单 -->
+            <div class="card">
+                <div class="card-header">
+                    <h3 class="card-title">活动订单</h3>
+                </div>
+                <div class="table-container">
+                    <table class="table">
+                        <thead>
+                            <tr>
+                                <th>时间</th>
+                                <th>方向</th>
+                                <th>价格</th>
+                                <th>数量</th>
+                                <th>操作</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr v-for="order in activeOrders" :key="order.id">
+                                <td>{{ order.time | formatTime }}</td>
+                                <td :class="{'text-green-500': order.side === 'BUY', 'text-red-500': order.side === 'SELL'}">
+                                    {{ order.side === 'BUY' ? '买入' : '卖出' }}
+                                </td>
+                                <td>{{ order.price | formatPrice }}</td>
+                                <td>{{ order.volume }}</td>
+                                <td>
+                                    <button class="btn btn-danger btn-sm" @click="cancelOrder(order.id)">
+                                        撤单
+                                    </button>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 交易组件
+const trading = {
+    data() {
+        return {
+            orderForm: {
+                symbol: '',
+                side: 'BUY',
+                type: 'LIMIT',
+                price: 0,
+                volume: 0
+            },
+            selectedSymbol: null
+        }
+    },
+    
+    computed: {
+        // 当前价格
+        currentPrice() {
+            return this.marketData.prices[this.orderForm.symbol] || 0;
+        },
+        
+        // 价格变化
+        priceChange() {
+            return this.currentPrice - (this.marketData.prices24h[this.orderForm.symbol] || this.currentPrice);
+        },
+        
+        // 价格变化百分比
+        priceChangePercent() {
+            const price24h = this.marketData.prices24h[this.orderForm.symbol];
+            if (!price24h) return 0;
+            return (this.currentPrice - price24h) / price24h;
+        },
+        
+        // 订单金额
+        orderAmount() {
+            const price = this.orderForm.type === 'LIMIT' ? this.orderForm.price : this.currentPrice;
+            return price * this.orderForm.volume;
+        },
+        
+        // 活动订单
+        activeOrders() {
+            return this.account.orders.filter(order => 
+                order.status === 'PENDING' && order.symbol === this.orderForm.symbol
+            );
+        },
+        
+        // 订单是否有效
+        isValidOrder() {
+            return this.orderForm.symbol && 
+                   this.orderForm.volume > 0 && 
+                   (this.orderForm.type === 'MARKET' || this.orderForm.price > 0);
+        }
+    },
+    
+    methods: {
+        // 使用市场价格
+        useMarketPrice() {
+            this.orderForm.price = this.currentPrice;
+        },
+        
+        // 设置数量百分比
+        setVolumePercent(percent) {
+            const maxVolume = this.orderForm.side === 'BUY' 
+                ? this.account.balance / this.currentPrice
+                : this.getPositionVolume(this.orderForm.symbol);
+            this.orderForm.volume = Math.floor(maxVolume * percent / 100);
+        },
+        
+        // 获取持仓数量
+        getPositionVolume(symbol) {
+            const position = this.account.positions.find(p => p.symbol === symbol);
+            return position ? position.volume : 0;
+        },
+        
+        // 提交订单
+        async submitOrder() {
+            if (!this.isValidOrder) return;
+            
+            try {
+                const response = await fetch('/api/order/create', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.orderForm)
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    this.showNotification({
+                        type: 'success',
+                        message: '订单提交成功'
+                    });
+                    this.resetForm();
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                this.handleError({
+                    message: '订单提交失败：' + error.message
+                });
+            }
+        },
+        
+        // 撤销订单
+        async cancelOrder(orderId) {
+            try {
+                const response = await fetch(`/api/order/cancel/${orderId}`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    this.showNotification({
+                        type: 'success',
+                        message: '订单已撤销'
+                    });
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                this.handleError({
+                    message: '撤销订单失败：' + error.message
+                });
+            }
+        },
+        
+        // 重置表单
+        resetForm() {
+            this.orderForm = {
+                symbol: this.orderForm.symbol,
+                side: 'BUY',
+                type: 'LIMIT',
+                price: 0,
+                volume: 0
+            };
+        }
+    },
+    
+    watch: {
+        // 监听交易对变化
+        'orderForm.symbol'(newSymbol) {
+            this.selectedSymbol = newSymbol;
+            if (this.orderForm.type === 'LIMIT') {
+                this.orderForm.price = this.currentPrice;
+            }
+        }
+    },
+    
+    mounted() {
+        // 设置默认交易对
+        if (this.marketData.symbols.length > 0) {
+            this.orderForm.symbol = this.marketData.symbols[0];
+        }
+    }
+};
+
+// 注册交易组件
+app.component('trading', trading);
+</script>
+{% endblock %}

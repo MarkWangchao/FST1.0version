@@ -1,0 +1,42 @@
+# FST Trading System - 生产环境配置
+
+app:
+  environment: "production"
+  debug: false
+
+trading:
+  market_data:
+    provider: "tqsdk"
+    update_interval: 0.5    # 更快的更新频率
+    cache_size: 5000       # 更大的缓存
+    retry_times: 5         # 更多重试次数
+  
+  risk_control:
+    max_positions: 5       # 正常持仓限制
+    max_loss_rate: 0.1    # 标准止损限制
+    daily_limit: 1000000  # 正常交易限额
+
+logging:
+  level: "INFO"          # 生产环境使用INFO级别
+  file:
+    enabled: true
+    path: "data/logs/prod"
+    max_size: 52428800   # 50MB
+    backup_count: 10     # 保留更多备份
+
+database:
+  type: "postgresql"     # 生产环境使用PostgreSQL
+  path: "data/database/prod"
+  backup_enabled: true
+  backup_interval: 43200  # 12小时备份一次
+
+accounts:
+  - account_id: "prod_account"
+    broker: "tqsdk"
+    username: "${TQSDK_USERNAME}"  # 从环境变量读取
+    password: "${TQSDK_PASSWORD}"  # 从环境变量读取
+    trade_mode: "real"            # 实盘交易
+    initial_capital: 1000000      # 正常初始资金
+    margin_ratio: 0.1
+    commission_rate: 0.0003
+    slippage: 1

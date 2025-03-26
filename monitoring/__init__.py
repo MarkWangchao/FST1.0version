@@ -1,8 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-FST (Full Self Trading) - 监控与告警系统
+FST (Full Self Trading) - 监控模块
 
-Created on 2025-03-07
+提供系统监控、交易监控和策略监控的功能。
 """
 
+from monitoring.health_check import HealthCheck
+
+__all__ = [
+    'HealthCheck'
+]

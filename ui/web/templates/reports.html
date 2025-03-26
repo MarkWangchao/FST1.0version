@@ -1,0 +1,375 @@
+{% extends "base.html" %}
+
+{% block title %}报告管理 - FST Trading Platform{% endblock %}
+
+{% block content %}
+<div id="reports-app" v-cloak>
+    <!-- 页面标题 -->
+    <div class="flex justify-between items-center mb-6">
+        <h1 class="text-2xl font-bold text-gray-800 dark:text-white">报告管理</h1>
+        <button @click="showGenerateDialog" class="btn btn-primary">
+            生成报告
+        </button>
+    </div>
+    
+    <!-- 筛选栏 -->
+    <div class="card mb-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <!-- 报告类型 -->
+            <div class="form-group">
+                <label class="form-label">报告类型</label>
+                <select v-model="filters.type" class="form-input">
+                    <option value="">全部</option>
+                    <option value="daily_trading">每日交易报告</option>
+                    <option value="weekly_trading">每周交易报告</option>
+                    <option value="monthly_trading">每月交易报告</option>
+                    <option value="performance">绩效报告</option>
+                    <option value="strategy">策略报告</option>
+                    <option value="risk">风险报告</option>
+                    <option value="backtest">回测报告</option>
+                </select>
+            </div>
+            
+            <!-- 日期范围 -->
+            <div class="form-group">
+                <label class="form-label">开始日期</label>
+                <input type="date" v-model="filters.startDate" class="form-input">
+            </div>
+            <div class="form-group">
+                <label class="form-label">结束日期</label>
+                <input type="date" v-model="filters.endDate" class="form-input">
+            </div>
+            
+            <!-- 搜索按钮 -->
+            <div class="form-group flex items-end">
+                <button @click="loadReports" class="btn btn-secondary">
+                    搜索
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 报告列表 -->
+    <div class="card">
+        <div class="overflow-x-auto">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th>标题</th>
+                        <th>类型</th>
+                        <th>作者</th>
+                        <th>创建时间</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="report in reports" :key="report.id">
+                        <td>${ report.title }</td>
+                        <td>${ report.type }</td>
+                        <td>${ report.author }</td>
+                        <td>${ formatDateTime(report.created_at) }</td>
+                        <td>
+                            <span :class="getStatusClass(report.status)">
+                                ${ report.status }
+                            </span>
+                        </td>
+                        <td>
+                            <div class="flex space-x-2">
+                                <button @click="viewReport(report)" class="btn btn-sm btn-secondary">
+                                    查看
+                                </button>
+                                <button @click="exportReport(report)" class="btn btn-sm btn-primary">
+                                    导出
+                                </button>
+                                <button v-if="report.status === 'draft'" 
+                                        @click="publishReport(report)"
+                                        class="btn btn-sm btn-success">
+                                    发布
+                                </button>
+                                <button v-if="report.status === 'published'"
+                                        @click="archiveReport(report)"
+                                        class="btn btn-sm btn-secondary">
+                                    归档
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- 分页 -->
+        <div class="flex justify-between items-center mt-4">
+            <div class="text-sm text-gray-500 dark:text-gray-400">
+                共 ${ totalReports } 条记录
+            </div>
+            <div class="flex space-x-2">
+                <button @click="prevPage" 
+                        :disabled="currentPage === 1"
+                        class="btn btn-sm btn-secondary">
+                    上一页
+                </button>
+                <span class="px-4 py-2">
+                    ${ currentPage } / ${ totalPages }
+                </span>
+                <button @click="nextPage"
+                        :disabled="currentPage === totalPages"
+                        class="btn btn-sm btn-secondary">
+                    下一页
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- 生成报告对话框 -->
+    <div v-if="showDialog" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+        <div class="bg-white dark:bg-gray-800 rounded-lg p-6 w-full max-w-lg">
+            <h2 class="text-xl font-bold mb-4">生成报告</h2>
+            
+            <div class="form-group">
+                <label class="form-label">报告类型</label>
+                <select v-model="newReport.type" class="form-input">
+                    <option value="daily_trading">每日交易报告</option>
+                    <option value="weekly_trading">每周交易报告</option>
+                    <option value="monthly_trading">每月交易报告</option>
+                    <option value="performance">绩效报告</option>
+                    <option value="strategy">策略报告</option>
+                    <option value="risk">风险报告</option>
+                    <option value="backtest">回测报告</option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">报告标题</label>
+                <input type="text" v-model="newReport.title" class="form-input">
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">报告模板</label>
+                <select v-model="newReport.templateId" class="form-input">
+                    <option v-for="template in templates" 
+                            :key="template.id" 
+                            :value="template.id">
+                        ${ template.name }
+                    </option>
+                </select>
+            </div>
+            
+            <div class="form-group">
+                <label class="form-label">描述</label>
+                <textarea v-model="newReport.description" class="form-input"></textarea>
+            </div>
+            
+            <div class="flex justify-end space-x-2 mt-4">
+                <button @click="closeDialog" class="btn btn-secondary">
+                    取消
+                </button>
+                <button @click="generateReport" class="btn btn-primary">
+                    生成
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const app = Vue.createApp({
+    delimiters: ['${', '}'],
+    data() {
+        return {
+            // 筛选条件
+            filters: {
+                type: '',
+                startDate: '',
+                endDate: ''
+            },
+            
+            // 报告列表
+            reports: [],
+            totalReports: 0,
+            currentPage: 1,
+            pageSize: 10,
+            
+            // 对话框
+            showDialog: false,
+            newReport: {
+                type: 'daily_trading',
+                title: '',
+                templateId: '',
+                description: ''
+            },
+            
+            // 报告模板
+            templates: []
+        }
+    },
+    
+    computed: {
+        totalPages() {
+            return Math.ceil(this.totalReports / this.pageSize)
+        }
+    },
+    
+    methods: {
+        // 加载报告列表
+        async loadReports() {
+            try {
+                const response = await fetch(`/api/reports/list?${new URLSearchParams({
+                    type: this.filters.type,
+                    start_date: this.filters.startDate,
+                    end_date: this.filters.endDate,
+                    page: this.currentPage,
+                    size: this.pageSize
+                })}`)
+                
+                const data = await response.json()
+                if (data.status === 'success') {
+                    this.reports = data.data.reports
+                    this.totalReports = data.data.total
+                }
+            } catch (error) {
+                console.error('加载报告失败:', error)
+            }
+        },
+        
+        // 加载报告模板
+        async loadTemplates() {
+            try {
+                const response = await fetch(`/api/reports/templates?type=${this.newReport.type}`)
+                const data = await response.json()
+                if (data.status === 'success') {
+                    this.templates = data.data
+                }
+            } catch (error) {
+                console.error('加载模板失败:', error)
+            }
+        },
+        
+        // 生成报告
+        async generateReport() {
+            try {
+                const response = await fetch('/api/reports/generate', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.newReport)
+                })
+                
+                const data = await response.json()
+                if (data.status === 'success') {
+                    this.closeDialog()
+                    this.loadReports()
+                }
+            } catch (error) {
+                console.error('生成报告失败:', error)
+            }
+        },
+        
+        // 导出报告
+        async exportReport(report) {
+            try {
+                const response = await fetch(`/api/reports/${report.id}/export`)
+                const data = await response.json()
+                if (data.status === 'success') {
+                    // TODO: 处理导出结果
+                }
+            } catch (error) {
+                console.error('导出报告失败:', error)
+            }
+        },
+        
+        // 发布报告
+        async publishReport(report) {
+            try {
+                const response = await fetch(`/api/reports/${report.id}/publish`, {
+                    method: 'POST'
+                })
+                
+                const data = await response.json()
+                if (data.status === 'success') {
+                    this.loadReports()
+                }
+            } catch (error) {
+                console.error('发布报告失败:', error)
+            }
+        },
+        
+        // 归档报告
+        async archiveReport(report) {
+            try {
+                const response = await fetch(`/api/reports/${report.id}/archive`, {
+                    method: 'POST'
+                })
+                
+                const data = await response.json()
+                if (data.status === 'success') {
+                    this.loadReports()
+                }
+            } catch (error) {
+                console.error('归档报告失败:', error)
+            }
+        },
+        
+        // 查看报告
+        viewReport(report) {
+            window.location.href = `/reports/${report.id}`
+        },
+        
+        // 分页
+        prevPage() {
+            if (this.currentPage > 1) {
+                this.currentPage--
+                this.loadReports()
+            }
+        },
+        
+        nextPage() {
+            if (this.currentPage < this.totalPages) {
+                this.currentPage++
+                this.loadReports()
+            }
+        },
+        
+        // 对话框
+        showGenerateDialog() {
+            this.showDialog = true
+            this.loadTemplates()
+        },
+        
+        closeDialog() {
+            this.showDialog = false
+            this.newReport = {
+                type: 'daily_trading',
+                title: '',
+                templateId: '',
+                description: ''
+            }
+        },
+        
+        // 工具方法
+        formatDateTime(timestamp) {
+            return new Date(timestamp).toLocaleString()
+        },
+        
+        getStatusClass(status) {
+            const classes = {
+                draft: 'text-gray-500',
+                published: 'text-green-500',
+                archived: 'text-gray-400'
+            }
+            return classes[status] || 'text-gray-500'
+        }
+    },
+    
+    mounted() {
+        this.loadReports()
+    }
+})
+
+app.mount('#reports-app')
+</script>
+{% endblock %}

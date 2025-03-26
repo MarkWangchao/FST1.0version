@@ -1,0 +1,42 @@
+# FST Trading System - 测试环境配置
+
+app:
+  environment: "testing"
+  debug: true
+
+trading:
+  market_data:
+    provider: "tqsdk"
+    update_interval: 1
+    cache_size: 2000
+    retry_times: 3
+  
+  risk_control:
+    max_positions: 3       # 测试环境持仓限制
+    max_loss_rate: 0.08   # 中等止损限制
+    daily_limit: 200000   # 测试环境交易限额
+
+logging:
+  level: "DEBUG"         # 测试环境使用DEBUG级别
+  file:
+    enabled: true
+    path: "data/logs/test"
+    max_size: 20971520   # 20MB
+    backup_count: 3
+
+database:
+  type: "sqlite"         # 测试环境使用SQLite
+  path: "data/database/test.db"
+  backup_enabled: true
+  backup_interval: 86400  # 24小时备份一次
+
+accounts:
+  - account_id: "test_account"
+    broker: "tqsdk"
+    username: "test"
+    password: "test"
+    trade_mode: "simulation"
+    initial_capital: 500000  # 测试环境初始资金
+    margin_ratio: 0.1
+    commission_rate: 0.0003
+    slippage: 1

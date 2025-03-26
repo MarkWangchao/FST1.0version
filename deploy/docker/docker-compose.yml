@@ -1,0 +1,186 @@
+version: '3.8'
+
+services:
+  # Main application
+  trading-platform:
+    build:
+      context: ../../
+      dockerfile: deploy/docker/Dockerfile
+    image: trading-platform:latest
+    container_name: trading-platform
+    restart: unless-stopped
+    depends_on:
+      - postgres
+      - redis
+      - timescaledb
+    ports:
+      - "8000:8000"
+    environment:
+      - ENVIRONMENT=development
+      - LOG_LEVEL=DEBUG
+      - DATABASE_URL=postgresql://tradinguser:tradingpass@postgres:5432/tradingdb
+      - REDIS_URL=redis://redis:6379/0
+      - TIMESCALEDB_URL=postgresql://tsdbuser:tsdbpass@timescaledb:5432/tsdb
+      - SECRET_KEY=dev_secret_key_replace_in_production
+    volumes:
+      - ../../:/app
+      - ./data/logs:/app/logs
+    networks:
+      - trading-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 20s
+
+  # Web UI development
+  trading-ui:
+    image: node:16-alpine
+    container_name: trading-ui
+    working_dir: /app
+    command: sh -c "npm install && npm run dev"
+    ports:
+      - "3000:3000"
+    volumes:
+      - ../../ui:/app
+    environment:
+      - NODE_ENV=development
+      - API_URL=http://trading-platform:8000
+    networks:
+      - trading-network
+    depends_on:
+      - trading-platform
+
+  # PostgreSQL database
+  postgres:
+    image: postgres:14-alpine
+    container_name: trading-postgres
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=tradinguser
+      - POSTGRES_PASSWORD=tradingpass
+      - POSTGRES_DB=tradingdb
+    volumes:
+      - ./data/postgres:/var/lib/postgresql/data
+      - ./init/postgres:/docker-entrypoint-initdb.d
+    ports:
+      - "5432:5432"
+    networks:
+      - trading-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tradinguser -d tradingdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # TimescaleDB for time-series data
+  timescaledb:
+    image: timescale/timescaledb:latest-pg14
+    container_name: trading-timescaledb
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=tsdbuser
+      - POSTGRES_PASSWORD=tsdbpass
+      - POSTGRES_DB=tsdb
+    volumes:
+      - ./data/timescaledb:/var/lib/postgresql/data
+      - ./init/timescaledb:/docker-entrypoint-initdb.d
+    ports:
+      - "5433:5432"
+    networks:
+      - trading-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U tsdbuser -d tsdb"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis for caching and message broker
+  redis:
+    image: redis:7-alpine
+    container_name: trading-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --requirepass redispass
+    volumes:
+      - ./data/redis:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - trading-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "-a", "redispass", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # MongoDB for document storage
+  mongodb:
+    image: mongo:6
+    container_name: trading-mongodb
+    restart: unless-stopped
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=mongouser
+      - MONGO_INITDB_ROOT_PASSWORD=mongopass
+      - MONGO_INITDB_DATABASE=trading
+    volumes:
+      - ./data/mongodb:/data/db
+      - ./init/mongodb:/docker-entrypoint-initdb.d
+    ports:
+      - "27017:27017"
+    networks:
+      - trading-network
+    healthcheck:
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Prometheus for metrics
+  prometheus:
+    image: prom/prometheus:latest
+    container_name: trading-prometheus
+    restart: unless-stopped
+    volumes:
+      - ./config/prometheus:/etc/prometheus
+      - ./data/prometheus:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--web.console.libraries=/usr/share/prometheus/console_libraries'
+      - '--web.console.templates=/usr/share/prometheus/consoles'
+    ports:
+      - "9090:9090"
+    networks:
+      - trading-network
+
+  # Grafana for visualization
+  grafana:
+    image: grafana/grafana:latest
+    container_name: trading-grafana
+    restart: unless-stopped
+    depends_on:
+      - prometheus
+    volumes:
+      - ./config/grafana:/etc/grafana/provisioning
+      - ./data/grafana:/var/lib/grafana
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+      - GF_USERS_ALLOW_SIGN_UP=false
+    ports:
+      - "3001:3000"
+    networks:
+      - trading-network
+
+networks:
+  trading-network:
+    driver: bridge
+
+volumes:
+  postgres-data:
+  timescaledb-data:
+  redis-data:
+  mongodb-data:
+  prometheus-data:
+  grafana-data:

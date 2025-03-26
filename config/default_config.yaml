@@ -1,0 +1,138 @@
+# FST Trading System 默认配置文件
+
+meta:
+  schema_version: "1.2.0"
+  created_at: "2024-03-11T00:00:00Z"
+  description: "FST Trading System 默认配置"
+
+app:
+  name: "FST Trading System"
+  version: "1.0.0"
+  environment: "development"  # development, production, testing
+  debug: true
+  locale: "zh_CN"
+  timezone: "Asia/Shanghai"
+
+trading:
+  market_data:
+    provider: "tqsdk"
+    update_interval: 1  # 数据更新间隔(秒)
+    cache_size: 1000   # 缓存大小
+    retry_times: 3     # 重试次数
+    timeout: 10        # 请求超时时间(秒)
+    heartbeat: 30      # 心跳检测间隔(秒)
+  
+  risk_control:
+    max_positions: 5      # 最大持仓数
+    max_loss_rate: 0.1    # 最大亏损率
+    daily_limit: 100000   # 日交易限额
+    position_limit: {     # 品种持仓限制
+      "IF": 3,
+      "IC": 3,
+      "IH": 3
+    }
+    risk_metrics: {       # 风险指标设置
+      "sharpe_ratio": 0.5,
+      "max_drawdown": 0.2,
+      "volatility": 0.15
+    }
+    
+  order:
+    timeout: 30           # 订单超时时间(秒)
+    max_retries: 3        # 最大重试次数
+    retry_interval: 1     # 重试间隔(秒)
+    price_tolerance: 0.02 # 价格容差
+    volume_check: true    # 是否检查成交量
+
+logging:
+  level: "INFO"
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  structured: true       # 是否使用结构化日志
+  compression: "gzip"    # 日志压缩方式
+  file:
+    enabled: true
+    path: "data/logs"
+    max_size: 10485760    # 10MB
+    backup_count: 5
+    permissions: "600"    # 文件权限
+  alert:
+    enabled: true
+    threshold: 10         # 错误日志报警阈值
+    interval: 300         # 报警间隔(秒)
+  metrics:
+    enabled: true
+    interval: 60          # 指标收集间隔(秒)
+    exporters: ["prometheus"]
+
+database:
+  type: "sqlite"
+  path: "data/database"
+  backup_enabled: true
+  backup_interval: 86400  # 24小时
+  max_connections: 10
+  timeout: 30
+  retry_interval: 5
+  pool_size: 5
+  pool_timeout: 30
+  ssl_enabled: false
+  compression: true
+
+cache:
+  type: "redis"
+  host: "localhost"
+  port: 6379
+  db: 0
+  max_connections: 10
+  timeout: 5
+  ttl: 3600              # 默认缓存时间(秒)
+
+accounts:
+  - account_id: "demo"
+    broker: "tqsdk"
+    username: "demo"
+    password: "demo"
+    trade_mode: "simulation"
+    initial_capital: 1000000
+    margin_ratio: 0.1
+    commission_rate: 0.0003
+    slippage: 1
+    risk_limit: 100000   # 风险限额
+    position_limit: 10   # 最大持仓限制
+
+monitoring:
+  enabled: true
+  interval: 60           # 监控间隔(秒)
+  metrics:
+    system:              # 系统监控指标
+      cpu_threshold: 80
+      memory_threshold: 80
+      disk_threshold: 90
+    application:         # 应用监控指标
+      latency_threshold: 1000
+      error_threshold: 10
+      queue_threshold: 1000
+  alerting:
+    enabled: true
+    channels: ["email", "webhook"]
+    cooldown: 300        # 报警冷却时间(秒)
+
+security:
+  encryption:
+    algorithm: "AES-256"
+    key_rotation: 86400  # 密钥轮换间隔(秒)
+  authentication:
+    jwt_expiry: 3600    # JWT过期时间(秒)
+    max_attempts: 5      # 最大登录尝试次数
+    lockout_time: 300   # 锁定时间(秒)
+  audit:
+    enabled: true
+    retention: 90       # 审计日志保留天数
+
+performance:
+  cache:
+    memory_limit: 1024  # 内存缓存限制(MB)
+    ttl: 3600          # 缓存生存时间(秒)
+  optimization:
+    jit_enabled: true   # 是否启用JIT
+    parallel: true      # 是否启用并行处理
+    batch_size: 1000    # 批处理大小

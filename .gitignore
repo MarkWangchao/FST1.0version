@@ -20,23 +20,61 @@ var/
 .installed.cfg
 *.egg
 
-# 配置文件中可能包含敏感信息
-config.yaml
-config.json
-secrets.yaml
-secrets.json
-
-# 日志和缓存
-*.log
-data/logs/
-data/cache/
+# 虚拟环境
+venv/
+ENV/
+.env
+.venv
+env/
 
 # IDE相关
 .idea/
 .vscode/
 *.swp
 *.swo
-
-# 系统相关
 .DS_Store
-Thumbs.db
+
+# 日志文件
+*.log
+logs/
+log/
+
+# 数据库文件
+*.db
+*.sqlite3
+data/database/
+
+# 本地配置（针对FST）
+config/local_config.yaml
+config/personal_settings.yaml
+config/secrets/
+
+# 缓存目录
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.nox/
+
+# 临时文件
+temp/
+tmp/
+.temp/
+.tmp/
+
+# 运行时生成的数据文件
+data/temp/
+data/reports/
+data/profiling/
+data/time_series/
+
+# Docker相关
+.docker/
+
+# 项目特定
+# 添加FST项目特定的需要忽略的文件类型
+*.pkl
+*.model
+*.joblib
+results/
+backtest_results/

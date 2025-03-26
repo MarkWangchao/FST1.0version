@@ -1,8 +1,6 @@
-#!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""
-FST (Full Self Trading) - 云服务
+# cloud/__init__.py
 
-Created on 2025-03-07
-"""
+from .aws import AWSIntegration
+from .aliyun import AliyunOSSIntegration
 
+# 可以直接使用这些类进行阿里云或 AWS 集成

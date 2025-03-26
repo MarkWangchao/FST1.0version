@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block title %}500 服务器错误 - FST Trading Platform{% endblock %}
+
+{% block content %}
+<div class="flex flex-col items-center justify-center py-12">
+    <div class="text-center">
+        <h1 class="text-9xl font-bold text-red-600">500</h1>
+        <h2 class="text-6xl font-medium py-8 text-gray-800 dark:text-white">服务器错误</h2>
+        <p class="text-2xl mb-8 text-gray-600 dark:text-gray-300">
+            抱歉，服务器处理请求时出现了问题。
+        </p>
+        <p class="mb-8 text-lg text-gray-500 dark:text-gray-400">
+            我们的技术团队已收到此错误通知，正在紧急处理中。<br>
+            请稍后再试或联系客服获取帮助。
+        </p>
+        <div class="flex justify-center space-x-4">
+            <a href="{{ url_for('index') }}" class="btn btn-primary">
+                返回首页
+            </a>
+            <button onclick="window.history.back();" class="btn btn-secondary">
+                返回上一页
+            </button>
+            <button onclick="window.location.reload();" class="btn btn-secondary">
+                刷新页面
+            </button>
+        </div>
+    </div>
+    
+    <!-- 500错误插图 -->
+    <div class="mt-12">
+        <svg class="w-64 h-64 text-red-100" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+            <path fill="currentColor" d="M504 256c0 136.997-111.043 248-248 248S8 392.997 8 256C8 119.083 119.043 8 256 8s248 111.083 248 248zm-248 50c-25.405 0-46 20.595-46 46s20.595 46 46 46 46-20.595 46-46-20.595-46-46-46zm-43.673-165.346l7.418 136c.347 6.364 5.609 11.346 11.982 11.346h48.546c6.373 0 11.635-4.982 11.982-11.346l7.418-136c.375-6.874-5.098-12.654-11.982-12.654h-63.383c-6.884 0-12.356 5.78-11.981 12.654z"></path>
+        </svg>
+    </div>
+</div>
+{% endblock %}

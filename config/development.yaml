@@ -1,0 +1,38 @@
+# FST Trading System - 开发环境配置
+
+app:
+  environment: "development"
+  debug: true
+
+trading:
+  market_data:
+    provider: "tqsdk"
+    update_interval: 1
+    cache_size: 1000
+    retry_times: 3
+  
+  risk_control:
+    max_positions: 2      # 开发环境限制持仓数
+    max_loss_rate: 0.05   # 更严格的止损限制
+    daily_limit: 50000    # 更小的日交易限额
+
+logging:
+  level: "DEBUG"         # 开发环境使用DEBUG级别
+  file:
+    enabled: true
+    path: "data/logs/dev"
+
+database:
+  type: "sqlite"
+  path: "data/database/dev.db"
+
+accounts:
+  - account_id: "dev_account"
+    broker: "tqsdk"
+    username: "demo"
+    password: "demo"
+    trade_mode: "simulation"
+    initial_capital: 100000  # 较小的初始资金
+    margin_ratio: 0.1
+    commission_rate: 0.0003
+    slippage: 1

@@ -1,0 +1,306 @@
+{% extends "base.html" %}
+
+{% block title %}设置 - FST Trading Platform{% endblock %}
+
+{% block content %}
+<div id="settings" v-cloak>
+    <div class="card">
+        <div class="card-header">
+            <h3 class="card-title">系统设置</h3>
+        </div>
+        
+        <!-- 设置选项卡 -->
+        <div class="border-b dark:border-gray-700">
+            <nav class="flex space-x-4 px-6" aria-label="Tabs">
+                <button v-for="tab in tabs" 
+                        :key="tab.id"
+                        class="px-3 py-2 text-sm font-medium rounded-md"
+                        :class="currentTab === tab.id ? 'bg-blue-100 text-blue-700 dark:bg-blue-900 dark:text-blue-200' : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300'"
+                        @click="currentTab = tab.id">
+                    {{ tab.name }}
+                </button>
+            </nav>
+        </div>
+        
+        <!-- 基本设置 -->
+        <div v-show="currentTab === 'basic'" class="p-6 space-y-6">
+            <!-- 主题设置 -->
+            <div class="form-group">
+                <label class="form-label">主题</label>
+                <select v-model="settings.theme" class="form-input">
+                    <option value="light">浅色</option>
+                    <option value="dark">深色</option>
+                    <option value="system">跟随系统</option>
+                </select>
+            </div>
+            
+            <!-- 语言设置 -->
+            <div class="form-group">
+                <label class="form-label">语言</label>
+                <select v-model="settings.language" class="form-input">
+                    <option value="zh-CN">简体中文</option>
+                    <option value="en-US">English</option>
+                </select>
+            </div>
+            
+            <!-- 时区设置 -->
+            <div class="form-group">
+                <label class="form-label">时区</label>
+                <select v-model="settings.timezone" class="form-input">
+                    <option value="Asia/Shanghai">中国标准时间 (UTC+8)</option>
+                    <option value="UTC">协调世界时 (UTC)</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- 交易设置 -->
+        <div v-show="currentTab === 'trading'" class="p-6 space-y-6">
+            <!-- 默认交易对 -->
+            <div class="form-group">
+                <label class="form-label">默认交易对</label>
+                <select v-model="settings.defaultSymbol" class="form-input">
+                    <option v-for="symbol in marketData.symbols" :key="symbol" :value="symbol">
+                        {{ symbol }}
+                    </option>
+                </select>
+            </div>
+            
+            <!-- 默认交易数量 -->
+            <div class="form-group">
+                <label class="form-label">默认交易数量</label>
+                <input type="number" v-model="settings.defaultVolume" class="form-input" min="0">
+            </div>
+            
+            <!-- 价格精度 -->
+            <div class="form-group">
+                <label class="form-label">价格精度</label>
+                <select v-model="settings.pricePrecision" class="form-input">
+                    <option value="0">整数</option>
+                    <option value="1">0.1</option>
+                    <option value="2">0.01</option>
+                    <option value="3">0.001</option>
+                    <option value="4">0.0001</option>
+                </select>
+            </div>
+            
+            <!-- 订单确认 -->
+            <div class="form-group">
+                <label class="form-label flex items-center space-x-2">
+                    <input type="checkbox" v-model="settings.confirmOrder" class="form-checkbox">
+                    <span>下单前确认</span>
+                </label>
+            </div>
+        </div>
+        
+        <!-- 风控设置 -->
+        <div v-show="currentTab === 'risk'" class="p-6 space-y-6">
+            <!-- 单笔最大交易额 -->
+            <div class="form-group">
+                <label class="form-label">单笔最大交易额</label>
+                <div class="flex items-center space-x-2">
+                    <input type="number" v-model="settings.maxOrderAmount" class="form-input" min="0">
+                    <span class="text-gray-500">元</span>
+                </div>
+            </div>
+            
+            <!-- 日交易限额 -->
+            <div class="form-group">
+                <label class="form-label">日交易限额</label>
+                <div class="flex items-center space-x-2">
+                    <input type="number" v-model="settings.dailyLimit" class="form-input" min="0">
+                    <span class="text-gray-500">元</span>
+                </div>
+            </div>
+            
+            <!-- 止损设置 -->
+            <div class="form-group">
+                <label class="form-label">默认止损比例</label>
+                <div class="flex items-center space-x-2">
+                    <input type="number" v-model="settings.stopLossPercent" class="form-input" min="0" max="100" step="0.1">
+                    <span class="text-gray-500">%</span>
+                </div>
+            </div>
+            
+            <!-- 止盈设置 -->
+            <div class="form-group">
+                <label class="form-label">默认止盈比例</label>
+                <div class="flex items-center space-x-2">
+                    <input type="number" v-model="settings.takeProfitPercent" class="form-input" min="0" max="100" step="0.1">
+                    <span class="text-gray-500">%</span>
+                </div>
+            </div>
+        </div>
+        
+        <!-- 通知设置 -->
+        <div v-show="currentTab === 'notification'" class="p-6 space-y-6">
+            <!-- 订单通知 -->
+            <div class="form-group">
+                <label class="form-label flex items-center space-x-2">
+                    <input type="checkbox" v-model="settings.orderNotification" class="form-checkbox">
+                    <span>订单状态变更通知</span>
+                </label>
+            </div>
+            
+            <!-- 价格提醒 -->
+            <div class="form-group">
+                <label class="form-label flex items-center space-x-2">
+                    <input type="checkbox" v-model="settings.priceAlert" class="form-checkbox">
+                    <span>价格提醒</span>
+                </label>
+            </div>
+            
+            <!-- 系统通知 -->
+            <div class="form-group">
+                <label class="form-label flex items-center space-x-2">
+                    <input type="checkbox" v-model="settings.systemNotification" class="form-checkbox">
+                    <span>系统通知</span>
+                </label>
+            </div>
+            
+            <!-- 邮件通知 -->
+            <div class="form-group">
+                <label class="form-label">邮件通知</label>
+                <input type="email" v-model="settings.notificationEmail" class="form-input" placeholder="请输入邮箱地址">
+            </div>
+        </div>
+        
+        <!-- API设置 -->
+        <div v-show="currentTab === 'api'" class="p-6 space-y-6">
+            <!-- API密钥 -->
+            <div class="form-group">
+                <label class="form-label">API Key</label>
+                <input type="text" v-model="settings.apiKey" class="form-input" placeholder="请输入API Key">
+            </div>
+            
+            <!-- API密钥 -->
+            <div class="form-group">
+                <label class="form-label">API Secret</label>
+                <input type="password" v-model="settings.apiSecret" class="form-input" placeholder="请输入API Secret">
+            </div>
+            
+            <!-- 交易所选择 -->
+            <div class="form-group">
+                <label class="form-label">交易所</label>
+                <select v-model="settings.exchange" class="form-input">
+                    <option value="binance">Binance</option>
+                    <option value="huobi">火币</option>
+                    <option value="okex">OKEx</option>
+                </select>
+            </div>
+        </div>
+        
+        <!-- 保存按钮 -->
+        <div class="p-6 bg-gray-50 dark:bg-gray-800 flex justify-end">
+            <button class="btn btn-primary" @click="saveSettings">
+                保存设置
+            </button>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+// 设置组件
+const settings = {
+    data() {
+        return {
+            currentTab: 'basic',
+            tabs: [
+                { id: 'basic', name: '基本设置' },
+                { id: 'trading', name: '交易设置' },
+                { id: 'risk', name: '风控设置' },
+                { id: 'notification', name: '通知设置' },
+                { id: 'api', name: 'API设置' }
+            ],
+            settings: {
+                // 基本设置
+                theme: 'light',
+                language: 'zh-CN',
+                timezone: 'Asia/Shanghai',
+                
+                // 交易设置
+                defaultSymbol: '',
+                defaultVolume: 1,
+                pricePrecision: 2,
+                confirmOrder: true,
+                
+                // 风控设置
+                maxOrderAmount: 100000,
+                dailyLimit: 1000000,
+                stopLossPercent: 10,
+                takeProfitPercent: 20,
+                
+                // 通知设置
+                orderNotification: true,
+                priceAlert: true,
+                systemNotification: true,
+                notificationEmail: '',
+                
+                // API设置
+                apiKey: '',
+                apiSecret: '',
+                exchange: 'binance'
+            }
+        }
+    },
+    
+    methods: {
+        // 加载设置
+        async loadSettings() {
+            try {
+                const response = await fetch('/api/settings');
+                const data = await response.json();
+                this.settings = {
+                    ...this.settings,
+                    ...data
+                };
+            } catch (error) {
+                this.handleError({
+                    message: '加载设置失败'
+                });
+            }
+        },
+        
+        // 保存设置
+        async saveSettings() {
+            try {
+                const response = await fetch('/api/settings', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(this.settings)
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    this.showNotification({
+                        type: 'success',
+                        message: '设置保存成功'
+                    });
+                    
+                    // 应用主题设置
+                    if (this.settings.theme !== 'system') {
+                        document.documentElement.classList.toggle('dark', this.settings.theme === 'dark');
+                    }
+                } else {
+                    throw new Error(data.message);
+                }
+            } catch (error) {
+                this.handleError({
+                    message: '保存设置失败：' + error.message
+                });
+            }
+        }
+    },
+    
+    mounted() {
+        this.loadSettings();
+    }
+};
+
+// 注册设置组件
+app.component('settings', settings);
+</script>
+{% endblock %}
